@@ -160,29 +160,18 @@ func main() {
 		cnt = fmt.Sprintf("%d", *limtP)
 	}
 
-	if *vdomP == "" {
-		//no vdom
-		cmd := fmt.Sprintf("diagnose sniffer packet %s %q 3 %s", *ifceP, *fltrP, cnt)
-		if *verbP {
-			fmt.Printf("running command: %s\n", cmd)
-		}
-		err = session.Run(cmd)
-		if err != nil {
-			fmt.Println("error running command:", err)
-			os.Exit(1)
-		}
-	} else {
-		//enter vdom before running
-		cmd := fmt.Sprintf("config vdom\n edit %s\n diagnose sniffer packet %s %q 3 %s", *vdomP, *ifceP, *fltrP, cnt)
-		if *verbP {
-			fmt.Printf("running command: %s\n", cmd)
-		}
-		err = session.Run(cmd)
-		if err != nil {
-			fmt.Println("error running command:", err)
-			os.Exit(1)
-		}
+	cmd := fmt.Sprintf("diagnose sniffer packet %s %q 3 %s", *ifceP, *fltrP, cnt)
+	if *vdomP != "" {
+		cmd = fmt.Sprintf("config vdom\n edit %s\n diagnose sniffer packet %s %q 3 %s", *vdomP, *ifceP, *fltrP, cnt)
 	}
 
-	// keeps running until the session is closed?
+	if *verbP {
+		fmt.Printf("running command: %s\n", cmd)
+	}
+	err = session.Run(cmd)
+	if err != nil {
+		fmt.Println("error running command:", err)
+		os.Exit(1)
+	}
+	// keeps running until cmd session.Run returns
 }
