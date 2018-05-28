@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"os"
 	"strings"
+
+	"golang.org/x/crypto/ssh"
 
 	"github.com/bgentry/speakeasy"
 
@@ -89,6 +90,7 @@ func main() {
 	ifceP := flag.String("i", "any", "fortigate interface to sniff. default sniffs all.")
 	fltrP := flag.String("f", "none", "packet filter using fortigate filtering syntax.\nFor example, to print UDP 1812 traffic between forti1 and either forti2\nor forti3: 'udp and port 1812 and host forti1 and ( forti2 or forti3 )'")
 	limtP := flag.Int("c", 0, "sniff until the packet count is reached")
+	vdomP := flag.String("d", "", "vdom")
 
 	verbP := flag.Bool("v", false, "verbose")
 	flag.Parse()
@@ -149,6 +151,7 @@ func main() {
 		fmt.Printf("Unable to setup stdout for session: %v\n", err)
 		os.Exit(1)
 	}
+
 	// go io.Copy(f, stdout)
 	go decodeSniff(stdout, f)
 
@@ -156,14 +159,30 @@ func main() {
 	if *limtP > 0 {
 		cnt = fmt.Sprintf("%d", *limtP)
 	}
-	cmd := fmt.Sprintf("diagnose sniffer packet %s %q 3 %s", *ifceP, *fltrP, cnt)
-	if *verbP {
-		fmt.Printf("running command: %s\n", cmd)
+
+	if *vdomP == "" {
+		//no vdom
+		cmd := fmt.Sprintf("diagnose sniffer packet %s %q 3 %s", *ifceP, *fltrP, cnt)
+		if *verbP {
+			fmt.Printf("running command: %s\n", cmd)
+		}
+		err = session.Run(cmd)
+		if err != nil {
+			fmt.Println("error running command:", err)
+			os.Exit(1)
+		}
+	} else {
+		//enter vdom before running
+		cmd := fmt.Sprintf("config vdom\n edit %s\n diagnose sniffer packet %s %q 3 %s", *vdomP, *ifceP, *fltrP, cnt)
+		if *verbP {
+			fmt.Printf("running command: %s\n", cmd)
+		}
+		err = session.Run(cmd)
+		if err != nil {
+			fmt.Println("error running command:", err)
+			os.Exit(1)
+		}
 	}
-	err = session.Run(cmd)
-	if err != nil {
-		fmt.Println("error running command:", err)
-		os.Exit(1)
-	}
+
 	// keeps running until the session is closed?
 }
