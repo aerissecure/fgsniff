@@ -6,7 +6,7 @@ There is an application distributed by Fortinet called `fg2eth.pl` that is avail
 
 ## Motivation
 
-I needed to cap some p's and my shinney new Fortigate 80e did not have the menu item available for producing the pcaps directly on the unit. Apparently Fortigate removed support for packet capture on devices that don't have a hard drive ([source](https://www.reddit.com/r/fortinet/comments/6pansn/fortigate_5456_packet_capture_gui/))
+I needed to cap some p's and my shinney new Fortigate 80e did not have the menu item available for producing the pcaps directly on the unit. Apparently Fortigate removed support for packet capture on devices that don't have a hard drive ([source](https://www.reddit.com/r/fortinet/comments/6pansn/fortigate_5456_packet_capture_gui/)).
 
 ## How it works
 
