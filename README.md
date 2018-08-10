@@ -2,7 +2,7 @@
 
 `fgsniff` is a command-line program written in Go that will produce pcaps from a remote Fortigate using SSH and the `diagnose sniffer packet` command.
 
-There is an application distributed by Fortinet called `fg2eth.pl` that is available [here](http://kb.fortinet.com/kb/documentLink.do?externalId=11186). However, I was not able to get it to work and it appeared to required copying the raw output into a file first.
+There is an application distributed by Fortinet called `fg2eth.pl` that is available [here](http://kb.fortinet.com/kb/documentLink.do?externalId=11186). However, I was not able to get it to work and it appeared to require copying the raw output into a file first.
 
 ## Motivation
 
