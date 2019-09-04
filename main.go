@@ -8,33 +8,15 @@ import (
 	"io"
 	"os"
 	"strings"
+	"syscall"
 
 	"golang.org/x/crypto/ssh"
-
-	"github.com/bgentry/speakeasy"
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
 )
-
-/*
-Example output
-3.021795 10.10.0.100.42066 -> 10.10.0.1.22: ack 2725452283
-0x0000	 704c a55b 64e0 5404 a61b b3dd 0800 4510	pL.[d.T.......E.
-0x0010	 0034 518e 4000 4006 d4ad 0a0a 0064 0a0a	.4Q.@.@......d..
-0x0020	 0001 a452 0016 f69b 908d a273 19fb 8010	...R.......s....
-0x0030	 1a8b 67b8 0000 0101 080a 3e36 f642 081d	..g.......>6.B..
-0x0040	 bb6a                                   	.j
-
-TODO:
-- graceful shutdown
-    - get the stats sent from the fg on shutdown:
-			^C
-			66 packets received by filter
-			0 packets dropped by kernel
-- code organization
-*/
 
 // decodeSniff reads input produced by the fortigate sniffer
 func decodeSniff(r io.Reader, w io.Writer) error {
@@ -99,16 +81,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	pass, err := speakeasy.Ask("password:")
+	fmt.Print("Password: ")
+	pass, err := terminal.ReadPassword(int(syscall.Stdin))
 	if err != nil {
 		fmt.Println("error getting password:", err)
 		os.Exit(1)
 	}
+	fmt.Println()
 
 	sshConfig := &ssh.ClientConfig{
 		User: *userP,
 		Auth: []ssh.AuthMethod{
-			ssh.Password(pass),
+			ssh.Password(string(pass)),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
@@ -119,10 +103,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *verbP {
+		fmt.Println("Successfully connected")
+	}
+
 	session, err := client.NewSession()
 	if err != nil {
 		fmt.Printf("Failed to create session: %s\n", err)
 		os.Exit(1)
+	}
+
+	if *verbP {
+		fmt.Println("SSH session created")
 	}
 
 	modes := ssh.TerminalModes{
@@ -152,7 +144,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// go io.Copy(f, stdout)
+	fmt.Println("Capturing packets...")
+
 	go decodeSniff(stdout, f)
 
 	cnt := ""
