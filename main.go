@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"syscall"
+	"unicode"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
@@ -103,9 +104,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *verbP {
-		fmt.Println("Successfully connected")
-	}
+	fmt.Println("Successfully connected")
 
 	session, err := client.NewSession()
 	if err != nil {
@@ -125,7 +124,7 @@ func main() {
 
 	if err := session.RequestPty("xterm", 80, 40, modes); err != nil {
 		session.Close()
-		fmt.Printf("request for pseudo terminal failed: %s\n", err)
+		fmt.Printf("Request for pseudo terminal failed: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -133,7 +132,7 @@ func main() {
 
 	f, err := os.Create(*fileP)
 	if err != nil {
-		fmt.Printf("unable to open %s for writing\n", *fileP)
+		fmt.Printf("Unable to open %s for writing\n", *fileP)
 		os.Exit(1)
 	}
 	defer f.Close()
@@ -144,9 +143,63 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("Capturing packets...")
+	// stderr, err := session.StdoutPipe()
+	// if err != nil {
+	// 	fmt.Printf("Unable to setup stderr for session: %v\n", err)
+	// 	os.Exit(1)
+	// }
 
-	go decodeSniff(stdout, f)
+	go func() {
+		br := bufio.NewReader(stdout)
+
+		logIfaces, err := br.ReadString('\n')
+		// expects e.g.: interfaces=[any]
+		if err != nil {
+			fmt.Printf("Error reading interfaces output line: %v\n", err)
+			os.Exit(1)
+		}
+		if *verbP {
+			fields := strings.Split(logIfaces, " # ")
+			if len(fields) == 2 {
+				fmt.Print(fields[1]) // includes newline delimiter
+			}
+			// ignore bad syntax
+		}
+
+		logFilters, err := br.ReadString('\n')
+		// expects e.g.: filters=[host 10.10.1.134]
+		if err != nil {
+			fmt.Printf("Error reading filters output line: %v\n", err)
+			os.Exit(1)
+		}
+		if *verbP {
+			fmt.Print(logFilters)
+		}
+
+		bPeek, err := br.Peek(256)
+		if len(bPeek) == 0 {
+			fmt.Printf("Error, no content returned: %v\n", err)
+			os.Exit(1)
+		}
+
+		peek := strings.Split(string(bPeek), "\n")[0]
+		if strings.HasPrefix(peek, "pcap_compile: ") {
+			msg := strings.TrimPrefix(peek, "pcap_compile: ")
+			fmt.Printf("Error compiling filter: %s\n", msg)
+			os.Exit(1)
+		}
+
+		if !unicode.IsDigit(rune(peek[0])) {
+			fmt.Printf("Possible error: %s\n", peek)
+		}
+
+		fmt.Println("Capturing packets...")
+
+		if err := decodeSniff(br, f); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+	}()
 
 	cnt := ""
 	if *limtP > 0 {
@@ -161,10 +214,9 @@ func main() {
 	if *verbP {
 		fmt.Printf("running command: %s\n", cmd)
 	}
-	err = session.Run(cmd)
+	err = session.Run(cmd) // runs until cmd session.Run returns
 	if err != nil {
 		fmt.Println("error running command:", err)
 		os.Exit(1)
 	}
-	// keeps running until cmd session.Run returns
 }
